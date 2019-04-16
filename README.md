@@ -47,7 +47,7 @@ You can use `jieba` package if you are going to deal with the Chinese text data.
 ### Data Format
 
 This repository can be used in other datasets (text pairs similarity classification) in two ways:
-1. Modify your datasets into the same format of the sample.
+1. Modify your datasets into the same format of [the sample](https://github.com/RandolphVI/Text-Pairs-Relation-Classification/blob/master/data/data_sample.json).
 2. Modify the data preprocess code in `data_helpers.py`.
 
 Anyway, it should depend on what your data and task are.
@@ -58,6 +58,8 @@ You can pre-training your word vectors (based on your corpus) in many ways:
 - Use `gensim` package to pre-train data.
 - Use `glove` tools to pre-train data.
 - Even can use a **fasttext** network to pre-train data.
+
+**🤔Before you open the new issue, please check the `data_sample.json` and read the other open issues first, because someone maybe ask me the same question already.**
 
 ## Network Structure
 
