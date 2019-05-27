@@ -31,8 +31,9 @@ class TextABCNN(object):
             # shape of `input_x1` and `input_x2`: [batch_size, embedding_size, sequence_length, 1]
             # input_x2 need to transpose to the [batch_size, embedding_size, 1, sequence_length]
             # shape of output: [batch_size, sequence_length, sequence_length]
-            euclidean = tf.sqrt(tf.reduce_sum(tf.square(input_x1 - tf.matrix_transpose(input_x2)), axis=1))
-            return 1 / (1 + euclidean)
+            dist = tf.reduce_sum(tf.square(input_x1 - tf.matrix_transpose(input_x2)), axis=1)
+            euclidean = tf.sqrt(tf.maximum(dist, 1e-10))
+            return 1.0 / (1.0 + euclidean)
 
         def _w_pool(input_x, attention, filter_size, scope):
             # input_x: [batch_size, num_filters, sequence_length + filter_size - 1, 1]
