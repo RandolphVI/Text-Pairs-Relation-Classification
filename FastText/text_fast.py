@@ -8,8 +8,8 @@ class TextFAST(object):
     """A FASTTEXT for text classification."""
 
     def __init__(
-            self, sequence_length, num_classes, vocab_size, embedding_size,
-            embedding_type, l2_reg_lambda=0.0, pretrained_embedding=None):
+            self, sequence_length, vocab_size, embedding_type, embedding_size, num_classes,
+             l2_reg_lambda=0.0, pretrained_embedding=None):
 
         # Placeholders for input, output, dropout_prob and training_tag
         self.input_x_front = tf.placeholder(tf.int32, [None, sequence_length], name="input_x_front")
@@ -89,7 +89,8 @@ class TextFAST(object):
 
         # Highway Layer
         with tf.name_scope("highway"):
-            self.highway = _highway_layer(self.fc_out, self.fc_out.get_shape()[1], num_layers=1, bias=0)
+            self.highway = _highway_layer(self.embedded_sentence_average,
+                                          self.embedded_sentence_average.get_shape()[1], num_layers=1, bias=0)
 
         # Add dropout
         with tf.name_scope("dropout"):
@@ -112,40 +113,3 @@ class TextFAST(object):
             l2_losses = tf.add_n([tf.nn.l2_loss(tf.cast(v, tf.float32)) for v in tf.trainable_variables()],
                                  name="l2_losses") * l2_reg_lambda
             self.loss = tf.add(losses, l2_losses, name="loss")
-
-        # Accuracy
-        with tf.name_scope("accuracy"):
-            correct_predictions = tf.equal(self.predictions, tf.argmax(self.input_y, 1))
-            self.accuracy = tf.reduce_mean(tf.cast(correct_predictions, "float"), name="accuracy")
-
-        # TODO: Reconsider the metrics calculation
-        # Number of correct predictions
-        with tf.name_scope("num_correct"):
-            correct = tf.equal(self.predictions, tf.argmax(self.input_y, 1))
-            self.num_correct = tf.reduce_sum(tf.cast(correct, "float"), name="num_correct")
-
-        # Calculate Fp
-        with tf.name_scope("fp"):
-            fp = tf.metrics.false_positives(labels=tf.argmax(self.input_y, 1), predictions=self.predictions)
-            self.fp = tf.reduce_sum(tf.cast(fp, "float"), name="fp")
-
-        # Calculate Fn
-        with tf.name_scope("fn"):
-            fn = tf.metrics.false_negatives(labels=tf.argmax(self.input_y, 1), predictions=self.predictions)
-            self.fn = tf.reduce_sum(tf.cast(fn, "float"), name="fn")
-
-        # Calculate Recall
-        with tf.name_scope("recall"):
-            self.recall = self.num_correct / (self.num_correct + self.fn)
-
-        # Calculate Precision
-        with tf.name_scope("precision"):
-            self.precision = self.num_correct / (self.num_correct + self.fp)
-
-        # Calculate F1
-        with tf.name_scope("F1"):
-            self.F1 = (2 * self.precision * self.recall) / (self.precision + self.recall)
-
-        # Calculate AUC
-        with tf.name_scope("AUC"):
-            self.AUC = tf.metrics.auc(self.softmax_scores, self.input_y, name="AUC")
