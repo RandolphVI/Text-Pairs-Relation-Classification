@@ -11,6 +11,7 @@ sys.path.append('../')
 logging.getLogger('tensorflow').disabled = True
 
 import tensorflow as tf
+
 from utils import checkmate as cm
 from utils import data_helpers as dh
 from utils import param_parser as parser
@@ -90,7 +91,7 @@ def test_ann():
             all_predicted_labels = []
             all_predicted_scores = []
 
-            for batch_test in batches_test:
+            for index, batch_test in enumerate(batches_test):
                 x_batch_test_front, x_batch_test_behind, y_batch_test = zip(*batch_test)
                 feed_dict = {
                     input_x_front: x_batch_test_front,

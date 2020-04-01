@@ -5,72 +5,127 @@ import os
 import sys
 import time
 import logging
-
-sys.path.append('../')
-logging.getLogger('tensorflow').disabled = True
-
-import numpy as np
 import tensorflow as tf
 
 from tensorboard.plugins import projector
 from text_sann import TextSANN
 from utils import checkmate as cm
 from utils import data_helpers as dh
-from utils import param_parser as parser
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score
 
-args = parser.parameter_parser()
-OPTION = dh._option(pattern=0)
-logger = dh.logger_fn("tflog", "logs/{0}-{1}.log".format('Train' if OPTION == 'T' else 'Restore', time.asctime()))
+# Parameters
+# ==================================================
+
+TRAIN_OR_RESTORE = input("☛ Train or Restore?(T/R): ")
+
+while not (TRAIN_OR_RESTORE.isalpha() and TRAIN_OR_RESTORE.upper() in ['T', 'R']):
+    TRAIN_OR_RESTORE = input("✘ The format of your input is illegal, please re-input: ")
+logging.info("✔︎ The format of your input is legal, now loading to next step...")
+
+TRAIN_OR_RESTORE = TRAIN_OR_RESTORE.upper()
+
+if TRAIN_OR_RESTORE == 'T':
+    logger = dh.logger_fn("tflog", "logs/training-{0}.log".format(time.asctime()))
+if TRAIN_OR_RESTORE == 'R':
+    logger = dh.logger_fn("tflog", "logs/restore-{0}.log".format(time.asctime()))
+
+TRAININGSET_DIR = '../data/Train.json'
+VALIDATIONSET_DIR = '../data/Validation.json'
+METADATA_DIR = '../data/metadata.tsv'
+
+# Data Parameters
+tf.flags.DEFINE_string("training_data_file", TRAININGSET_DIR, "Data source for the training data.")
+tf.flags.DEFINE_string("validation_data_file", VALIDATIONSET_DIR, "Data source for the validation data.")
+tf.flags.DEFINE_string("metadata_file", METADATA_DIR, "Metadata file for embedding visualization"
+                                                      "(Each line is a word segment in metadata_file).")
+tf.flags.DEFINE_string("train_or_restore", TRAIN_OR_RESTORE, "Train or Restore.")
+
+# Model Hyperparameters
+tf.flags.DEFINE_float("learning_rate", 0.001, "The learning rate (default: 0.001)")
+tf.flags.DEFINE_integer("pad_seq_len", 120, "Recommended padding Sequence length of data (depends on the data)")
+tf.flags.DEFINE_integer("embedding_dim", 300, "Dimensionality of character embedding (default: 128)")
+tf.flags.DEFINE_integer("embedding_type", 1, "The embedding type (default: 1)")
+tf.flags.DEFINE_integer("lstm_hidden_size", 256, "Hidden size for bi-lstm layer(default: 256)")
+tf.flags.DEFINE_integer("attention_unit_size", 350, "Attention unit size(default: 350)")
+tf.flags.DEFINE_integer("attention_hops_size", 30, "Attention hops size(default: 30)")
+tf.flags.DEFINE_boolean("attention_penalization", True, "Use penalization or not(default: True)")
+tf.flags.DEFINE_integer("fc_hidden_size", 1024, "Hidden size for fully connected layer (default: 1024)")
+tf.flags.DEFINE_float("dropout_keep_prob", 0.5, "Dropout keep probability (default: 0.5)")
+tf.flags.DEFINE_float("l2_reg_lambda", 0.0, "L2 regularization lambda (default: 0.0)")
+
+# Training Parameters
+tf.flags.DEFINE_integer("batch_size", 64, "Batch Size (default: 64)")
+tf.flags.DEFINE_integer("num_epochs", 200, "Number of training epochs (default: 200)")
+tf.flags.DEFINE_integer("evaluate_every", 2000, "Evaluate model on dev set after this many steps (default: 100)")
+tf.flags.DEFINE_float("norm_ratio", 2, "The ratio of the sum of gradients norms of trainable variable (default: 1.25)")
+tf.flags.DEFINE_integer("decay_steps", 500, "how many steps before decay learning rate. (default: 500)")
+tf.flags.DEFINE_float("decay_rate", 0.95, "Rate of decay for learning rate. (default: 0.95)")
+tf.flags.DEFINE_integer("checkpoint_every", 500, "Save model after this many steps (default: 100)")
+tf.flags.DEFINE_integer("num_checkpoints", 5, "Number of checkpoints to store (default: 5)")
+
+# Misc Parameters
+tf.flags.DEFINE_boolean("allow_soft_placement", True, "Allow device soft device placement")
+tf.flags.DEFINE_boolean("log_device_placement", False, "Log placement of ops on devices")
+tf.flags.DEFINE_boolean("gpu_options_allow_growth", True, "Allow gpu options growth")
+
+FLAGS = tf.flags.FLAGS
+FLAGS(sys.argv)
+dilim = '-' * 100
+logger.info('\n'.join([dilim, *['{0:>50}|{1:<50}'.format(attr.upper(), FLAGS.__getattr__(attr))
+                                for attr in sorted(FLAGS.__dict__['__wrapped'])], dilim]))
 
 
 def train_sann():
     """Training RNN model."""
-    # Print parameters used for the model
-    dh.tab_printer(args, logger)
 
     # Load sentences, labels, and training parameters
-    logger.info("Loading data...")
-    logger.info("Data processing...")
-    train_data = dh.load_data_and_labels(args.train_file, args.embedding_dim)
-    validation_data = dh.load_data_and_labels(args.validation_file, args.embedding_dim)
+    logger.info("✔︎ Loading data...")
 
-    logger.info("Data padding...")
-    x_train_front, x_train_behind, y_train = dh.pad_data(train_data, args.pad_seq_len)
-    x_validation_front, x_validation_behind, y_validation = dh.pad_data(validation_data, args.pad_seq_len)
+    logger.info("✔︎ Training data processing...")
+    train_data = dh.load_data_and_labels(FLAGS.training_data_file, FLAGS.embedding_dim)
+
+    logger.info("✔︎ Validation data processing...")
+    validation_data = dh.load_data_and_labels(FLAGS.validation_data_file, FLAGS.embedding_dim)
+
+    logger.info("Recommended padding Sequence length is: {0}".format(FLAGS.pad_seq_len))
+
+    logger.info("✔︎ Training data padding...")
+    x_train_front, x_train_behind, y_train = dh.pad_data(train_data, FLAGS.pad_seq_len)
+
+    logger.info("✔︎ Validation data padding...")
+    x_validation_front, x_validation_behind, y_validation = dh.pad_data(validation_data, FLAGS.pad_seq_len)
 
     # Build vocabulary
-    VOCAB_SIZE, pretrained_word2vec_matrix = dh.load_word2vec_matrix(args.embedding_dim, args.word2vec_file)
+    VOCAB_SIZE, pretrained_word2vec_matrix = dh.load_word2vec_matrix(FLAGS.embedding_dim)
 
     # Build a graph and sann object
     with tf.Graph().as_default():
         session_conf = tf.ConfigProto(
-            allow_soft_placement=args.allow_soft_placement,
-            log_device_placement=args.log_device_placement)
-        session_conf.gpu_options.allow_growth = args.gpu_options_allow_growth
+            allow_soft_placement=FLAGS.allow_soft_placement,
+            log_device_placement=FLAGS.log_device_placement)
+        session_conf.gpu_options.allow_growth = FLAGS.gpu_options_allow_growth
         sess = tf.Session(config=session_conf)
         with sess.as_default():
             sann = TextSANN(
-                sequence_length=args.pad_seq_len,
-                vocab_size=VOCAB_SIZE,
-                embedding_type=args.embedding_type,
-                embedding_size=args.embedding_dim,
-                lstm_hidden_size=args.lstm_dim,
-                attention_unit_size=args.attention_dim,
-                attention_hops_size=args.attention_hops_dim,
-                fc_hidden_size=args.fc_dim,
+                sequence_length=FLAGS.pad_seq_len,
                 num_classes=y_train.shape[1],
-                l2_reg_lambda=args.l2_lambda,
+                vocab_size=VOCAB_SIZE,
+                lstm_hidden_size=FLAGS.lstm_hidden_size,
+                attention_unit_size=FLAGS.attention_unit_size,
+                attention_hops_size=FLAGS.attention_hops_size,
+                fc_hidden_size=FLAGS.fc_hidden_size,
+                embedding_size=FLAGS.embedding_dim,
+                embedding_type=FLAGS.embedding_type,
+                l2_reg_lambda=FLAGS.l2_reg_lambda,
                 pretrained_embedding=pretrained_word2vec_matrix)
 
             # Define training procedure
             with tf.control_dependencies(tf.get_collection(tf.GraphKeys.UPDATE_OPS)):
-                learning_rate = tf.train.exponential_decay(learning_rate=args.learning_rate,
-                                                           global_step=sann.global_step, decay_steps=args.decay_steps,
-                                                           decay_rate=args.decay_rate, staircase=True)
+                learning_rate = tf.train.exponential_decay(learning_rate=FLAGS.learning_rate,
+                                                           global_step=sann.global_step, decay_steps=FLAGS.decay_steps,
+                                                           decay_rate=FLAGS.decay_rate, staircase=True)
                 optimizer = tf.train.AdamOptimizer(learning_rate)
                 grads, vars = zip(*optimizer.compute_gradients(sann.loss))
-                grads, _ = tf.clip_by_global_norm(grads, clip_norm=args.norm_ratio)
+                grads, _ = tf.clip_by_global_norm(grads, clip_norm=FLAGS.norm_ratio)
                 train_op = optimizer.apply_gradients(zip(grads, vars), global_step=sann.global_step, name="train_op")
 
             # Keep track of gradient values and sparsity (optional)
@@ -84,29 +139,43 @@ def train_sann():
             grad_summaries_merged = tf.summary.merge(grad_summaries)
 
             # Output directory for models and summaries
-            out_dir = dh.get_out_dir(OPTION, logger)
+            if FLAGS.train_or_restore == 'R':
+                MODEL = input("☛ Please input the checkpoints model you want to restore, "
+                              "it should be like(1490175368): ")  # The model you want to restore
+
+                while not (MODEL.isdigit() and len(MODEL) == 10):
+                    MODEL = input("✘ The format of your input is illegal, please re-input: ")
+                logger.info("✔︎ The format of your input is legal, now loading to next step...")
+                out_dir = os.path.abspath(os.path.join(os.path.curdir, "runs", MODEL))
+                logger.info("✔︎ Writing to {0}\n".format(out_dir))
+            else:
+                timestamp = str(int(time.time()))
+                out_dir = os.path.abspath(os.path.join(os.path.curdir, "runs", timestamp))
+                logger.info("✔︎ Writing to {0}\n".format(out_dir))
+
             checkpoint_dir = os.path.abspath(os.path.join(out_dir, "checkpoints"))
             best_checkpoint_dir = os.path.abspath(os.path.join(out_dir, "bestcheckpoints"))
 
-            # Summaries for loss
+            # Summaries for loss and accuracy
             loss_summary = tf.summary.scalar("loss", sann.loss)
+            acc_summary = tf.summary.scalar("accuracy", sann.accuracy)
 
             # Train summaries
-            train_summary_op = tf.summary.merge([loss_summary, grad_summaries_merged])
+            train_summary_op = tf.summary.merge([loss_summary, acc_summary, grad_summaries_merged])
             train_summary_dir = os.path.join(out_dir, "summaries", "train")
             train_summary_writer = tf.summary.FileWriter(train_summary_dir, sess.graph)
 
             # Validation summaries
-            validation_summary_op = tf.summary.merge([loss_summary])
+            validation_summary_op = tf.summary.merge([loss_summary, acc_summary])
             validation_summary_dir = os.path.join(out_dir, "summaries", "validation")
             validation_summary_writer = tf.summary.FileWriter(validation_summary_dir, sess.graph)
 
-            saver = tf.train.Saver(tf.global_variables(), max_to_keep=args.num_checkpoints)
+            saver = tf.train.Saver(tf.global_variables(), max_to_keep=FLAGS.num_checkpoints)
             best_saver = cm.BestCheckpointSaver(save_dir=best_checkpoint_dir, num_to_keep=3, maximize=True)
 
-            if OPTION == 'R':
+            if FLAGS.train_or_restore == 'R':
                 # Load sann model
-                logger.info("Loading model...")
+                logger.info("✔︎ Loading model...")
                 checkpoint_file = tf.train.latest_checkpoint(checkpoint_dir)
                 logger.info(checkpoint_file)
 
