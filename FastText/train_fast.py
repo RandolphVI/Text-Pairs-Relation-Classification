@@ -157,9 +157,9 @@ def train_fasttext():
                 for batch_validation in batches_validation:
                     x_batch_val_front, x_batch_val_behind, y_batch_val = zip(*batch_validation)
                     feed_dict = {
-                        fasttext.input_x_front: x_batch_front,
-                        fasttext.input_x_behind: x_batch_behind,
-                        fasttext.input_y: y_batch,
+                        fasttext.input_x_front: x_batch_val_front,
+                        fasttext.input_x_behind: x_batch_val_behind,
+                        fasttext.input_y: y_batch_val,
                         fasttext.dropout_keep_prob: 1.0,
                         fasttext.is_training: False
                     }

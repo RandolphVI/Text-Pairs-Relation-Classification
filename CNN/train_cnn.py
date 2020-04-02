@@ -157,9 +157,9 @@ def train_cnn():
                 for batch_validation in batches_validation:
                     x_batch_val_front, x_batch_val_behind, y_batch_val = zip(*batch_validation)
                     feed_dict = {
-                        cnn.input_x_front: x_batch_front,
-                        cnn.input_x_behind: x_batch_behind,
-                        cnn.input_y: y_batch,
+                        cnn.input_x_front: x_batch_val_front,
+                        cnn.input_x_behind: x_batch_val_behind,
+                        cnn.input_y: y_batch_val,
                         cnn.dropout_keep_prob: 1.0,
                         cnn.is_training: False
                     }

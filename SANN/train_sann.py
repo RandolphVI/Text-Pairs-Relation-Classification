@@ -159,9 +159,9 @@ def train_sann():
                 for batch_validation in batches_validation:
                     x_batch_val_front, x_batch_val_behind, y_batch_val = zip(*batch_validation)
                     feed_dict = {
-                        sann.input_x_front: x_batch_front,
-                        sann.input_x_behind: x_batch_behind,
-                        sann.input_y: y_batch,
+                        sann.input_x_front: x_batch_val_front,
+                        sann.input_x_behind: x_batch_val_behind,
+                        sann.input_y: y_batch_val,
                         sann.dropout_keep_prob: 1.0,
                         sann.is_training: False
                     }

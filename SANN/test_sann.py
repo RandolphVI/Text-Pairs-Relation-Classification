@@ -30,7 +30,7 @@ def test_sann():
     """Test SANN model."""
     # Print parameters used for the model
     dh.tab_printer(args, logger)
-    
+
     # Load data
     logger.info("Loading data...")
     logger.info("Data processing...")

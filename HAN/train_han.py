@@ -157,9 +157,9 @@ def train_han():
                 for batch_validation in batches_validation:
                     x_batch_val_front, x_batch_val_behind, y_batch_val = zip(*batch_validation)
                     feed_dict = {
-                        han.input_x_front: x_batch_front,
-                        han.input_x_behind: x_batch_behind,
-                        han.input_y: y_batch,
+                        han.input_x_front: x_batch_val_front,
+                        han.input_x_behind: x_batch_val_behind,
+                        han.input_y: y_batch_val,
                         han.dropout_keep_prob: 1.0,
                         han.is_training: False
                     }

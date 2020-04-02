@@ -157,9 +157,9 @@ def train_rnn():
                 for batch_validation in batches_validation:
                     x_batch_val_front, x_batch_val_behind, y_batch_val = zip(*batch_validation)
                     feed_dict = {
-                        rnn.input_x_front: x_batch_front,
-                        rnn.input_x_behind: x_batch_behind,
-                        rnn.input_y: y_batch,
+                        rnn.input_x_front: x_batch_val_front,
+                        rnn.input_x_behind: x_batch_val_behind,
+                        rnn.input_y: y_batch_val,
                         rnn.dropout_keep_prob: 1.0,
                         rnn.is_training: False
                     }
