@@ -9,7 +9,7 @@ The main objective of the project is to determine whether the two sentences are 
 ## Requirements
 
 - Python 3.6
-- Tensorflow 1.4 +
+- Tensorflow 1.4
 - Numpy
 - Gensim
 
@@ -24,7 +24,7 @@ The project structure is below:
 │   ├── text_model.py
 │   └── train_model.py
 ├── data
-│   ├── word2vec_100.model [Need Download]
+│   ├── word2vec_100.model.* [Need Download]
 │   ├── Test_sample.json
 │   ├── Train_sample.json
 │   └── Validation_sample.json
@@ -40,12 +40,11 @@ The project structure is below:
 ## Innovation
 
 ### Data part
-1. Make the data support **Chinese** and English (Which use `jieba` seems easy).
-2. Can use **your own pre-trained word vectors** (Which use `jieba` seems easy). 
-3. Add embedding visualization based on the **tensorboard**.
+1. Make the data support **Chinese** and English (Can use `jieba` or `nltk` ).
+2. Can use **your pre-trained word vectors** (Can use `gensim`). 
+3. Add embedding visualization based on the **tensorboard** (Need to create `metadata.tsv` first).
 
 ### Model part
-1. Design **two subnetworks** to solve the task --- Text Pairs Similarity Classification.
 2. Add the correct **L2 loss** calculation operation.
 3. Add **gradients clip** operation to prevent gradient explosion.
 4. Add **learning rate decay** with exponential decay.
@@ -55,35 +54,75 @@ The project structure is below:
 
 ### Code part
 1. Can choose to **train** the model directly or **restore** the model from the checkpoint in `train.py`.
-2. Add `test.py`, the **model test code**, it can show the predicted values and predicted labels of the data in Testset when creating the final prediction file.
+2. Can create the prediction file which including the predicted values and predicted labels of the Testset data in `test.py`.
 3. Add other useful data preprocess functions in `data_helpers.py`.
 4. Use `logging` for helping to record the whole info (including parameters display, model training info, etc.).
 5. Provide the ability to save the best n checkpoints in `checkmate.py`, whereas the `tf.train.Saver` can only save the last n checkpoints.
 
 ## Data
 
-See data format in `data` folder which including the data sample files.
+See data format in `/data` folder which including the data sample files. For example:
+
+```json
+{"front_testid": "4270954", "behind_testid": "7075962", "front_features": ["invention", "inorganic", "fiber", "based", "calcium", "sulfate", "dihydrate", "calcium"], "behind_features": ["vcsel", "structure", "thermal", "management", "structure", "designed"], "label": 0}
+```
+
+- **"testid"**: just the id.
+- **"features"**: the word segment (after removing the stopwords)
+- **"label"**: 0 or 1. 1 means that two sentences are similar, and 0 means the opposite.
 
 ### Text Segment
 
-You can use `jieba` package if you are going to deal with the Chinese text data.
+1. You can use `nltk` package if you are going to deal with the English text data.
+
+2. You can use `jieba` package if you are going to deal with the Chinese text data.
 
 ### Data Format
 
 This repository can be used in other datasets (text pairs similarity classification) in two ways:
-1. Modify your datasets into the same format of [the sample](https://github.com/RandolphVI/Text-Pairs-Relation-Classification/blob/master/data/data_sample.json).
-2. Modify the data preprocess code in `data_helpers.py`.
+1. Modify your datasets into the same format of [the sample](https://github.com/RandolphVI/Text-Pairs-Relation-Classification/blob/master/data).
+2. Modify the data preprocessing code in `data_helpers.py`.
 
 Anyway, it should depend on what your data and task are.
 
 ### Pre-trained Word Vectors
+
+**You can download the [Word2vec model file](https://drive.google.com/open?id=1o_F5CeCWvDtH2DhINRJP_bhByYIIoLUk) (dim=100). Make sure they are unzipped and under the `/data` folder.**
 
 You can pre-training your word vectors (based on your corpus) in many ways:
 - Use `gensim` package to pre-train data.
 - Use `glove` tools to pre-train data.
 - Even can use a **fasttext** network to pre-train data.
 
-**🤔Before you open the new issue, please check the `data_sample.json` and read the other open issues first, because someone maybe ask me the same question already.**
+**🤔Before you open the new issue, please check the data sample file under the `data` folder and read the other open issues first, because someone maybe ask the same question already.**
+
+## Usage
+
+Use CNN model for example:
+
+### Training
+
+The following commands train a model. 
+
+```bash
+python3 train_cnn.py
+```
+
+Training a model for a 100 epochs and set batch size as 128.
+
+```bash
+python3 train_cnn.py --epochs 100 --batch-size 128
+```
+
+## Test
+
+The following commands test a model.
+
+```bash
+python3 test.py
+```
+
+More details see Usage.
 
 ## Network Structure
 
