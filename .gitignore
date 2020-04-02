@@ -104,6 +104,9 @@ target/
 *.png
 *.pickle
 !/data
+!/data/word2vec_100.model
+!/data/word2vec_100.model.trainables.syn1neg.npy
+!/data/word2vec_100.model.wv.vectors.npy
 !/data/train_sample.json
 !/data/validation_sample.json
 !/data/test_sample.json
