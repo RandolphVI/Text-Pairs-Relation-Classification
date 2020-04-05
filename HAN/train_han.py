@@ -32,15 +32,15 @@ def train_han():
     # Load sentences, labels, and training parameters
     logger.info("Loading data...")
     logger.info("Data processing...")
-    train_data = dh.load_data_and_labels(args.train_file, args.embedding_dim)
-    validation_data = dh.load_data_and_labels(args.validation_file, args.embedding_dim)
+    train_data = dh.load_data_and_labels(args.train_file, args.word2vec_file)
+    validation_data = dh.load_data_and_labels(args.validation_file, args.word2vec_file)
 
     logger.info("Data padding...")
     x_train_front, x_train_behind, y_train = dh.pad_data(train_data, args.pad_seq_len)
     x_validation_front, x_validation_behind, y_validation = dh.pad_data(validation_data, args.pad_seq_len)
 
     # Build vocabulary
-    VOCAB_SIZE, pretrained_word2vec_matrix = dh.load_word2vec_matrix(args.embedding_dim, args.word2vec_file)
+    VOCAB_SIZE, EMBEDDING_SIZE, pretrained_word2vec_matrix = dh.load_word2vec_matrix(args.word2vec_file)
 
     # Build a graph and han object
     with tf.Graph().as_default():
@@ -54,7 +54,7 @@ def train_han():
                 sequence_length=args.pad_seq_len,
                 vocab_size=VOCAB_SIZE,
                 embedding_type=args.embedding_type,
-                embedding_size=args.embedding_dim,
+                embedding_size=EMBEDDING_SIZE,
                 lstm_hidden_size=args.lstm_dim,
                 fc_hidden_size=args.fc_dim,
                 num_classes=y_train.shape[1],

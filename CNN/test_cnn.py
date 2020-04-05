@@ -33,7 +33,7 @@ def test_cnn():
     # Load data
     logger.info("Loading data...")
     logger.info("Data processing...")
-    test_data = dh.load_data_and_labels(args.test_file, args.embedding_dim)
+    test_data = dh.load_data_and_labels(args.test_file, args.word2vec_file)
 
     logger.info("Data padding...")
     x_test_front, x_test_behind, y_test = dh.pad_data(test_data, args.pad_seq_len)
