@@ -56,7 +56,7 @@ The project structure is below:
 1. Can choose to **train** the model directly or **restore** the model from the checkpoint in `train.py`.
 2. Can create the prediction file which including the predicted values and predicted labels of the Testset data in `test.py`.
 3. Add other useful data preprocess functions in `data_helpers.py`.
-4. Use `logging` for helping to record the whole info (including parameters display, model training info, etc.).
+4. Use `logging` for helping to record the whole info (including **parameters display**, **model training info**, etc.).
 5. Provide the ability to save the best n checkpoints in `checkmate.py`, whereas the `tf.train.Saver` can only save the last n checkpoints.
 
 ## Data
