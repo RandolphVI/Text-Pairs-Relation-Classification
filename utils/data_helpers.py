@@ -2,7 +2,6 @@
 __author__ = 'Randolph'
 
 import os
-import multiprocessing
 import gensim
 import logging
 import json
@@ -13,7 +12,6 @@ from texttable import Texttable
 from gensim.models import word2vec
 from tflearn.data_utils import to_categorical, pad_sequences
 
-TEXT_DIR = '../data/content.txt'
 ANALYSIS_DIR = '../data/data_analysis/'
 
 
@@ -178,30 +176,11 @@ def create_metadata_file(word2vec_file, output_file):
                 fout.write(word[0] + '\n')
 
 
-
-def create_word2vec_model(embedding_size, input_file=TEXT_DIR):
-    """
-    Create the word2vec model based on the given embedding size and the corpus file.
-
-    Args:
-        embedding_size: The embedding size
-        input_file: The corpus file
-    """
-    word2vec_file = '../data/word2vec_' + str(embedding_size) + '.model'
-
-    sentences = word2vec.LineSentence(input_file)
-    # sg=0 means use CBOW model(default); sg=1 means use skip-gram model.
-    model = gensim.models.Word2Vec(sentences, size=embedding_size, min_count=0,
-                                   sg=0, workers=multiprocessing.cpu_count())
-    model.save(word2vec_file)
-
-
-def load_word2vec_matrix(embedding_size, word2vec_file):
+def load_word2vec_matrix(word2vec_file):
     """
     Return the word2vec model matrix.
 
     Args:
-        embedding_size: The embedding size
         word2vec_file: The word2vec file
     Returns:
         The word2vec model matrix
@@ -212,13 +191,14 @@ def load_word2vec_matrix(embedding_size, word2vec_file):
         raise IOError("[Error] The word2vec file doesn't exist. ")
 
     model = gensim.models.Word2Vec.load(word2vec_file)
-    vocab_size = len(model.wv.vocab.items())
+    vocab_size = model.wv.vectors.shape[0]
+    embedding_size = model.vector_size
     vocab = dict([(k, v.index) for k, v in model.wv.vocab.items()])
     embedding_matrix = np.zeros([vocab_size, embedding_size])
     for key, value in vocab.items():
         if key is not None:
             embedding_matrix[value] = model[key]
-    return vocab_size, embedding_matrix
+    return vocab_size, embedding_size, embedding_matrix
 
 
 def data_word2vec(input_file, word2vec_model):
@@ -295,22 +275,20 @@ def data_word2vec(input_file, word2vec_model):
     return _Data()
 
 
-def load_data_and_labels(data_file, embedding_size):
+def load_data_and_labels(data_file, word2vec_file):
     """
     Load research data from files, splits the data into words and generates labels.
     Return split sentences, labels and the max sentence length of the research data.
 
     Args:
         data_file: The research data
-        embedding_size: The embedding size
+        word2vec_file: The word2vec model file
     Returns:
         The class Data
     """
-    word2vec_file = '../data/word2vec_' + str(embedding_size) + '.model'
-
     # Load word2vec file
     if not os.path.isfile(word2vec_file):
-        create_word2vec_model(embedding_size, TEXT_DIR)
+        raise IOError("[Error] The word2vec file doesn't exist. ")
 
     model = word2vec.Word2Vec.load(word2vec_file)
 
