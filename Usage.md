@@ -5,28 +5,58 @@
 ### Input and output options
 
 ```
-  --train-file   STR    Training file.      Default is `data/Train_sample.json`.
-  --validation-file   STR    Validation file.      Default is `dataset/Validation_sample.json`.
-  --testing-file    STR    Testing file.       Default is `dataset/Test_sample.json`.
-  --word2vec-file   STR    Word2vec model file.     Default is `data/word2vec_100.model`.
+  --train-file   			STR    Training file.      		Default is `data/Train_sample.json`.
+  --validation-file   STR    Validation file.      	Default is `data/Validation_sample.json`.
+  --testing-file    	STR    Testing file.       		Default is `data/Test_sample.json`.
+  --word2vec-file   	STR    Word2vec model file.		Default is `data/word2vec_100.model`.
 ```
 
 ### Model option
 
+```
+  --pad-seq-len                 INT     Padding Sequence length of data.   Depends on data.
+  --embedding-type              INT     The embedding type.				         Default is 1.
+  --embedding-dim               INT     Dim of character embedding.        Default is 100.
+  --filter-sizes                LIST    Filter sizes.   									 Default is [3,4,5].
+  --num-filters							    INT     Number of filters per filter size. Default is 128.  
+  --pooling-size			          INT     Pooling size.							         Default is 3.
+  --lstm-dim					          INT     Dim of LSTM neurons.      				 Default is 256.
+  --lstm-layers                 INT   	Number of LSTM layers.             Defatul is 1.
+  --attention-dim					      INT     Dim of Attention neurons.      		 Default is 200.
+  --attention-hops-dim				  INT     Dim of Attention hops.        		 Default is 30.
+  --fc-dim					            INT     Dim of FC neurons.        				 Default is 512.
+  --dropout-rate                FLOAT   Dropout keep probability.          Default is 0.5.
+  --num-classes                 INT     Total number of labels.            Depends on data.
+  --topK                        INT     Number of top K prediction classes.Default is 5.
+  --threshold                   FLOAT   Threshold for prediction classes.  Default is 0.5.
+```
 
+### Training option
+
+```
+  --epochs                      INT     Number of epochs.                  Default is 100.
+  --batch-size                  INT     Batch size.									       Default is 256.
+  --learning-rate               FLOAT   Adam learning rate.                Default is 0.001.
+  --decay-rate               		FLOAT   Rate of decay for learning rate.   Default is 0.95.
+  --decay-steps               	INT     How many steps before decy lr.     Default is 500.
+  --evaluate-steps              INT     How many steps to evluate val set. Default is 500.
+  --l2-lambda                   FLOAT   L2 regularization lambda.          Default is 0.0.
+  --checkpoint-steps            INT     How many steps to save model. 		 Default is 500.
+  --num-checkpoints             INT     Number of checkpoints to store.    Default is 500.
+```
 
 ## Training
 
 The following commands train a model. (Use CNN for example)
 
 ```bash
-python3 train_cnn.py
+$ python3 train_cnn.py
 ```
 
-Training a model for a 100 epochs and set batch size as 128.
+Training a model for a 200 epochs and set batch size as 128.
 
 ```bash
-python3 train_cnn.py --epochs 100 --batch-size 128
+$ python3 train_cnn.py --epochs 200 --batch-size 128
 ```
 
 In the beginning, you will see the program shows:
@@ -79,7 +109,7 @@ And the model will continue training from the last time.
 The following commands test a model.
 
 ```bash
-python3 test_cnn.py
+$ python3 test_cnn.py
 ```
 
 Then you will be asked to give the model name (a 10-digital format, like 1585814009):
