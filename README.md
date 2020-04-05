@@ -98,31 +98,7 @@ You can pre-training your word vectors (based on your corpus) in many ways:
 
 ## Usage
 
-Use CNN model for example:
-
-### Training
-
-The following commands train a model. 
-
-```bash
-python3 train_cnn.py
-```
-
-Training a model for a 100 epochs and set batch size as 128.
-
-```bash
-python3 train_cnn.py --epochs 100 --batch-size 128
-```
-
-## Test
-
-The following commands test a model.
-
-```bash
-python3 test.py
-```
-
-More details see Usage.
+See [Usage](https://github.com/RandolphVI/Text-Pairs-Relation-Classification/blob/master/Usage.md).
 
 ## Network Structure
 
