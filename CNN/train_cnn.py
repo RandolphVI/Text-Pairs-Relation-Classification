@@ -163,23 +163,22 @@ def train_cnn():
                         cnn.dropout_keep_prob: 1.0,
                         cnn.is_training: False
                     }
-                    step, summaries, scores, predictions, cur_loss = sess.run(
-                        [cnn.global_step, validation_summary_op,
-                         cnn.topKPreds, cnn.predictions, cnn.loss], feed_dict)
+                    step, summaries, predictions, cur_loss = sess.run(
+                        [cnn.global_step, validation_summary_op, cnn.topKPreds, cnn.loss], feed_dict)
 
                     # Prepare for calculating metrics
                     for i in y_batch_val:
                         true_labels.append(np.argmax(i))
-                    for j in scores[0]:
+                    for j in predictions[0]:
                         predicted_scores.append(j[0])
-                    for k in predictions:
-                        predicted_labels.append(k)
+                    for k in predictions[1]:
+                        predicted_labels.append(k[0])
 
                     eval_loss = eval_loss + cur_loss
                     eval_counter = eval_counter + 1
 
-                if writer:
-                    writer.add_summary(summaries, step)
+                    if writer:
+                        writer.add_summary(summaries, step)
 
                 eval_loss = float(eval_loss / eval_counter)
 

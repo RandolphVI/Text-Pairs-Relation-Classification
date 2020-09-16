@@ -273,7 +273,6 @@ class TextABCNN(object):
             b = tf.Variable(tf.constant(value=0.1, shape=[num_classes], dtype=tf.float32), name="b")
             self.logits = tf.nn.xw_plus_b(self.h_drop, W, b, name="logits")
             self.softmax_scores = tf.nn.softmax(self.logits, name="softmax_scores")
-            self.predictions = tf.argmax(self.logits, 1, name="predictions")
             self.topKPreds = tf.nn.top_k(self.softmax_scores, k=1, sorted=True, name="topKPreds")
 
         # Calculate mean cross-entropy loss, L2 loss

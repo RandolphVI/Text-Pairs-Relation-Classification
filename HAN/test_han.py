@@ -11,7 +11,6 @@ sys.path.append('../')
 logging.getLogger('tensorflow').disabled = True
 
 import tensorflow as tf
-
 from utils import checkmate as cm
 from utils import data_helpers as dh
 from utils import param_parser as parser
@@ -69,12 +68,12 @@ def test_han():
             is_training = graph.get_operation_by_name("is_training").outputs[0]
 
             # Tensors we want to evaluate
-            predictions = graph.get_operation_by_name("output/predictions").outputs[0]
-            topKPreds = graph.get_operation_by_name("output/topKPreds").outputs[0]
+            scores = graph.get_operation_by_name("output/topKPreds").outputs[0]
+            predictions = graph.get_operation_by_name("output/topKPreds").outputs[1]
             loss = graph.get_operation_by_name("loss/loss").outputs[0]
 
             # Split the output nodes name by '|' if you have several output nodes
-            output_node_names = "output/predictions|output/topKPreds"
+            output_node_names = "output/topKPreds"
 
             # Save the .pb model file
             output_graph_def = tf.graph_util.convert_variables_to_constants(sess, sess.graph_def,
@@ -101,15 +100,15 @@ def test_han():
                     is_training: False
                 }
 
-                batch_predicted_labels, batch_predicted_scores, batch_loss \
-                    = sess.run([predictions, topKPreds, loss], feed_dict)
+                batch_predicted_scores, batch_predicted_labels, batch_loss \
+                    = sess.run([scores, predictions, loss], feed_dict)
 
                 for i in y_batch_test:
                     all_labels.append(np.argmax(i))
                 for j in batch_predicted_scores:
                     all_predicted_scores.append(j[0])
                 for k in batch_predicted_labels:
-                    all_predicted_labels.append(k)
+                    all_predicted_labels.append(k[0])
 
                 test_loss = test_loss + batch_loss
                 test_counter = test_counter + 1
