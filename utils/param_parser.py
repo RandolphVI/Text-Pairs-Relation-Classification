@@ -95,16 +95,6 @@ def parameter_parser():
                         default=0.5,
                         help="Dropout keep probability. (default: 0.5)")
 
-    parser.add_argument("--num-classes",
-                        type=int,
-                        default=661,
-                        help="Total number of labels. (depends on the task)")
-
-    parser.add_argument("--topK",
-                        type=int,
-                        default=5,
-                        help="Number of top K prediction classes. (default: 5)")
-
     parser.add_argument("--threshold",
                         type=float,
                         default=0.5,
