@@ -6,7 +6,7 @@ def parameter_parser():
     A method to parse up command line parameters.
     The default hyperparameters give good results without cross-validation.
     """
-    parser = argparse.ArgumentParser(description="Run MTC Task.")
+    parser = argparse.ArgumentParser(description="Run Text Pairs Relation Classification Task.")
 
     # Data Parameters
     parser.add_argument("--train-file",
@@ -31,7 +31,7 @@ def parameter_parser():
 
     parser.add_argument("--word2vec-file",
                         nargs="?",
-                        default="../data/word2vec_100.model",
+                        default="../data/word2vec_100.kv",
                         help="Word2vec file for embedding characters (the dim need to be the same as embedding dim).")
 
     # Model Hyperparameters
@@ -95,6 +95,11 @@ def parameter_parser():
                         default=0.5,
                         help="Dropout keep probability. (default: 0.5)")
 
+    parser.add_argument("--num-classes",
+                        type=list,
+                        default=2,
+                        help="Each number of labels in hierarchical structure. (depends on the task)")
+
     parser.add_argument("--threshold",
                         type=float,
                         default=0.5,
@@ -128,7 +133,7 @@ def parameter_parser():
 
     parser.add_argument("--evaluate-steps",
                         type=int,
-                        default=50,
+                        default=10,
                         help="Evaluate model on val set after how many steps. (default: 50)")
 
     parser.add_argument("--norm-ratio",
@@ -143,7 +148,7 @@ def parameter_parser():
 
     parser.add_argument("--checkpoint-steps",
                         type=int,
-                        default=50,
+                        default=10,
                         help="Save model after how many steps. (default: 50)")
 
     parser.add_argument("--num-checkpoints",

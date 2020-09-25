@@ -23,23 +23,22 @@ OPTION = dh._option(pattern=0)
 logger = dh.logger_fn("tflog", "logs/{0}-{1}.log".format('Train' if OPTION == 'T' else 'Restore', time.asctime()))
 
 
+def create_input_data(data: dict):
+    return zip(data['f_pad_seqs'], data['b_pad_seqs'], data['onehot_labels'])
+
+
 def train_cnn():
     """Training CNN model."""
     # Print parameters used for the model
     dh.tab_printer(args, logger)
+    # Load word2vec model
+    word2idx, embedding_matrix = dh.load_word2vec_matrix(args.word2vec_file)
 
     # Load sentences, labels, and training parameters
     logger.info("Loading data...")
     logger.info("Data processing...")
-    train_data = dh.load_data_and_labels(args.train_file, args.word2vec_file)
-    validation_data = dh.load_data_and_labels(args.validation_file, args.word2vec_file)
-
-    logger.info("Data padding...")
-    x_train_front, x_train_behind, y_train = dh.pad_data(train_data, args.pad_seq_len)
-    x_validation_front, x_validation_behind, y_validation = dh.pad_data(validation_data, args.pad_seq_len)
-
-    # Build vocabulary
-    VOCAB_SIZE, EMBEDDING_SIZE, pretrained_word2vec_matrix = dh.load_word2vec_matrix(args.word2vec_file)
+    train_data = dh.load_data_and_labels(args, args.train_file, word2idx)
+    val_data = dh.load_data_and_labels(args, args.validation_file, word2idx)
 
     # Build a graph and cnn object
     with tf.Graph().as_default():
@@ -51,15 +50,15 @@ def train_cnn():
         with sess.as_default():
             cnn = TextCNN(
                 sequence_length=args.pad_seq_len,
-                vocab_size=VOCAB_SIZE,
+                vocab_size=len(word2idx),
                 embedding_type=args.embedding_type,
-                embedding_size=EMBEDDING_SIZE,
+                embedding_size=args.embedding_dim,
                 filter_sizes=args.filter_sizes,
                 num_filters=args.num_filters,
                 fc_hidden_size=args.fc_dim,
-                num_classes=y_train.shape[1],
+                num_classes=args.num_classes,
                 l2_reg_lambda=args.l2_lambda,
-                pretrained_embedding=pretrained_word2vec_matrix)
+                pretrained_embedding=embedding_matrix)
 
             # Define training procedure
             with tf.control_dependencies(tf.get_collection(tf.GraphKeys.UPDATE_OPS)):
@@ -131,12 +130,14 @@ def train_cnn():
 
             current_step = sess.run(cnn.global_step)
 
-            def train_step(x_batch_front, x_batch_behind, y_batch):
-                """A single training step"""
+            def train_step(batch_data):
+                """A single training step."""
+                x_f, x_b, y_onehot = zip(*batch_data)
+
                 feed_dict = {
-                    cnn.input_x_front: x_batch_front,
-                    cnn.input_x_behind: x_batch_behind,
-                    cnn.input_y: y_batch,
+                    cnn.input_x_front: x_f,
+                    cnn.input_x_behind: x_b,
+                    cnn.input_y: y_onehot,
                     cnn.dropout_keep_prob: args.dropout_rate,
                     cnn.is_training: True
                 }
@@ -145,21 +146,21 @@ def train_cnn():
                 logger.info("step {0}: loss {1:g}".format(step, loss))
                 train_summary_writer.add_summary(summaries, step)
 
-            def validation_step(x_batch_front, x_batch_behind, y_batch, writer=None):
-                """Evaluates model on a validation set"""
-                batches_validation = dh.batch_iter(list(zip(x_batch_front, x_batch_behind, y_batch)),
-                                                   args.batch_size, 1)
+            def validation_step(val_loader, writer=None):
+                """Evaluates model on a validation set."""
+                batches_validation = dh.batch_iter(list(create_input_data(val_loader)), args.batch_size, 1)
+
                 eval_counter, eval_loss = 0, 0.0
                 true_labels = []
                 predicted_scores = []
                 predicted_labels = []
 
                 for batch_validation in batches_validation:
-                    x_batch_val_front, x_batch_val_behind, y_batch_val = zip(*batch_validation)
+                    x_f, x_b, y_onehot = zip(*batch_validation)
                     feed_dict = {
-                        cnn.input_x_front: x_batch_val_front,
-                        cnn.input_x_behind: x_batch_val_behind,
-                        cnn.input_y: y_batch_val,
+                        cnn.input_x_front: x_f,
+                        cnn.input_x_behind: x_b,
+                        cnn.input_y: y_onehot,
                         cnn.dropout_keep_prob: 1.0,
                         cnn.is_training: False
                     }
@@ -167,7 +168,7 @@ def train_cnn():
                         [cnn.global_step, validation_summary_op, cnn.topKPreds, cnn.loss], feed_dict)
 
                     # Prepare for calculating metrics
-                    for i in y_batch_val:
+                    for i in y_onehot:
                         true_labels.append(np.argmax(i))
                     for j in predictions[0]:
                         predicted_scores.append(j[0])
@@ -199,21 +200,19 @@ def train_cnn():
 
             # Generate batches
             batches_train = dh.batch_iter(
-                list(zip(x_train_front, x_train_behind, y_train)), args.batch_size, args.epochs)
+                list(create_input_data(train_data)), args.batch_size, args.epochs)
 
-            num_batches_per_epoch = int((len(x_train_front) - 1) / args.batch_size) + 1
+            num_batches_per_epoch = int((len(train_data['f_pad_seqs']) - 1) / args.batch_size) + 1
 
             # Training loop. For each batch...
             for batch_train in batches_train:
-                x_batch_front, x_batch_behind, y_batch = zip(*batch_train)
-                train_step(x_batch_front, x_batch_behind, y_batch)
+                train_step(batch_train)
                 current_step = tf.train.global_step(sess, cnn.global_step)
 
                 if current_step % args.evaluate_steps == 0:
                     logger.info("\nEvaluation:")
                     eval_loss, eval_acc, eval_pre, eval_rec, eval_F1, eval_auc = \
-                        validation_step(x_validation_front, x_validation_behind,
-                                        y_validation, writer=validation_summary_writer)
+                        validation_step(val_data, writer=validation_summary_writer)
                     logger.info("All Validation set: Loss {0:g} | Acc {1:g} | Precision {2:g} | "
                                 "Recall {3:g} | F1 {4:g} | AUC {5:g}"
                                 .format(eval_loss, eval_acc, eval_pre, eval_rec, eval_F1, eval_auc))

@@ -20,12 +20,14 @@ class TextCNN(object):
 
         self.global_step = tf.Variable(0, trainable=False, name="Global_Step")
 
-        def _linear(input_, output_size, scope="SimpleLinear"):
+        def _linear(input_, output_size, initializer=None, scope="SimpleLinear"):
             """
-            Linear map: output[k] = sum_i(Matrix[k, i] * args[i] ) + Bias[k]
+            Linear map: output[k] = sum_i(Matrix[k, i] * args[i] ) + Bias[k].
+
             Args:
                 input_: a tensor or a list of 2D, batch x n, Tensors.
                 output_size: int, second dimension of W[i].
+                initializer: The initializer.
                 scope: VariableScope for the created subgraph; defaults to "SimpleLinear".
             Returns:
                 A 2D Tensor with shape [batch x output_size] equal to
@@ -44,22 +46,23 @@ class TextCNN(object):
             # Now the computation.
             with tf.variable_scope(scope):
                 W = tf.get_variable("W", [input_size, output_size], dtype=input_.dtype)
-                b = tf.get_variable("b", [output_size], dtype=input_.dtype)
+                b = tf.get_variable("b", [output_size], dtype=input_.dtype, initializer=initializer)
 
             return tf.nn.xw_plus_b(input_, W, b)
 
-        def _highway_layer(input_, size, num_layers=1, bias=-2.0, f=tf.nn.relu):
+        def _highway_layer(input_, size, num_layers=1, bias=-2.0):
             """
             Highway Network (cf. http://arxiv.org/abs/1505.00387).
-            t = sigmoid(Wy + b)
-            z = t * g(Wy + b) + (1 - t) * y
-            where g is nonlinearity, t is transform gate, and (1 - t) is carry gate.
+            t = sigmoid(Wx + b); h = relu(W'x + b')
+            z = t * h + (1 - t) * x
+            where t is transform gate, and (1 - t) is carry gate.
             """
 
             for idx in range(num_layers):
-                g = f(_linear(input_, size, scope=("highway_lin_{0}".format(idx))))
-                t = tf.sigmoid(_linear(input_, size, scope=("highway_gate_{0}".format(idx))) + bias)
-                output = t * g + (1. - t) * input_
+                h = tf.nn.relu(_linear(input_, size, scope=("highway_h_{0}".format(idx))))
+                t = tf.sigmoid(_linear(input_, size, initializer=tf.constant_initializer(bias),
+                                       scope=("highway_t_{0}".format(idx))))
+                output = t * h + (1. - t) * input_
                 input_ = output
 
             return output
@@ -82,7 +85,7 @@ class TextCNN(object):
             self.embedded_sentence_expanded_front = tf.expand_dims(self.embedded_sentence_front, axis=-1)
             self.embedded_sentence_expanded_behind = tf.expand_dims(self.embedded_sentence_behind, axis=-1)
 
-        # Create a convolution + maxpool layer for each filter size
+        # Create a convolution + max-pool layer for each filter size
         pooled_outputs_front = []
         pooled_outputs_behind = []
 
@@ -110,12 +113,12 @@ class TextCNN(object):
                 conv_bn_front = tf.layers.batch_normalization(tf.nn.bias_add(conv_front, b), training=self.is_training)
                 conv_bn_behind = tf.layers.batch_normalization(tf.nn.bias_add(conv_behind, b), training=self.is_training)
 
-                # Apply nonlinearity
+                # Apply non-linearity
                 conv_out_front = tf.nn.relu(conv_bn_front, name="relu_front")
                 conv_out_behind = tf.nn.relu(conv_bn_behind, name="relu_behind")
 
             with tf.name_scope("pool-filter{0}".format(filter_size)):
-                # Maxpooling over the outputs
+                # Max-pooling over the outputs
                 pooled_front = tf.nn.max_pool(
                     conv_out_front,
                     ksize=[1, sequence_length - filter_size + 1, 1, 1],
@@ -152,7 +155,7 @@ class TextCNN(object):
             # Batch Normalization Layer
             self.fc_bn = tf.layers.batch_normalization(self.fc, training=self.is_training)
 
-            # Apply nonlinearity
+            # Apply non-linearity
             self.fc_out = tf.nn.relu(self.fc_bn, name="relu")
 
         # Highway Layer
