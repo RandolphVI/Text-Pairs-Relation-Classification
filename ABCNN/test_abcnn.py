@@ -25,18 +25,22 @@ BEST_CPT_DIR = 'runs/' + MODEL + '/bestcheckpoints/'
 SAVE_DIR = 'output/' + MODEL
 
 
+def create_input_data(data: dict):
+    return zip(data['f_pad_seqs'], data['b_pad_seqs'], data['onehot_labels'])
+
+
 def test_abcnn():
     """Test ABCNN model."""
     # Print parameters used for the model
     dh.tab_printer(args, logger)
 
+    # Load word2vec model
+    word2idx, embedding_matrix = dh.load_word2vec_matrix(args.word2vec_file)
+
     # Load data
     logger.info("Loading data...")
     logger.info("Data processing...")
-    test_data = dh.load_data_and_labels(args.test_file, args.word2vec_file)
-
-    logger.info("Data padding...")
-    x_test_front, x_test_behind, y_test = dh.pad_data(test_data, args.pad_seq_len)
+    test_data = dh.load_data_and_labels(args, args.test_file, word2idx)
 
     # Load abcnn model
     OPTION = dh._option(pattern=1)
@@ -81,21 +85,20 @@ def test_abcnn():
             tf.train.write_graph(output_graph_def, "graph", "graph-abcnn-{0}.pb".format(MODEL), as_text=False)
 
             # Generate batches for one epoch
-            batches_test = dh.batch_iter(list(zip(x_test_front, x_test_behind, y_test)),
-                                         args.batch_size, 1, shuffle=False)
+            batches_test = dh.batch_iter(list(create_input_data(test_data)), args.batch_size, 1, shuffle=False)
 
             # Collect the predictions here
             test_counter, test_loss = 0, 0.0
-            all_labels = []
-            all_predicted_labels = []
-            all_predicted_scores = []
+            true_labels = []
+            predicted_labels = []
+            predicted_scores = []
 
             for batch_test in batches_test:
-                x_batch_test_front, x_batch_test_behind, y_batch_test = zip(*batch_test)
+                x_f, x_b, y_onehot = zip(*batch_test)
                 feed_dict = {
-                    input_x_front: x_batch_test_front,
-                    input_x_behind: x_batch_test_behind,
-                    input_y: y_batch_test,
+                    input_x_front: x_f,
+                    input_x_behind: x_b,
+                    input_y: y_onehot,
                     dropout_keep_prob: 1.0,
                     is_training: False
                 }
@@ -103,12 +106,12 @@ def test_abcnn():
                 batch_predicted_scores, batch_predicted_labels, batch_loss \
                     = sess.run([scores, predictions, loss], feed_dict)
 
-                for i in y_batch_test:
-                    all_labels.append(np.argmax(i))
+                for i in y_onehot:
+                    true_labels.append(np.argmax(i))
                 for j in batch_predicted_scores:
-                    all_predicted_scores.append(j[0])
+                    predicted_scores.append(j[0])
                 for k in batch_predicted_labels:
-                    all_predicted_labels.append(k[0])
+                    predicted_labels.append(k[0])
 
                 test_loss = test_loss + batch_loss
                 test_counter = test_counter + 1
@@ -116,17 +119,17 @@ def test_abcnn():
             test_loss = float(test_loss / test_counter)
 
             # Calculate Precision & Recall & F1
-            test_acc = accuracy_score(y_true=np.array(all_labels), y_pred=np.array(all_predicted_labels))
-            test_pre = precision_score(y_true=np.array(all_labels),
-                                       y_pred=np.array(all_predicted_labels), average='micro')
-            test_rec = recall_score(y_true=np.array(all_labels),
-                                    y_pred=np.array(all_predicted_labels), average='micro')
-            test_F1 = f1_score(y_true=np.array(all_labels),
-                               y_pred=np.array(all_predicted_labels), average='micro')
+            test_acc = accuracy_score(y_true=np.array(true_labels), y_pred=np.array(predicted_labels))
+            test_pre = precision_score(y_true=np.array(true_labels),
+                                       y_pred=np.array(predicted_labels), average='micro')
+            test_rec = recall_score(y_true=np.array(true_labels),
+                                    y_pred=np.array(predicted_labels), average='micro')
+            test_F1 = f1_score(y_true=np.array(true_labels),
+                               y_pred=np.array(predicted_labels), average='micro')
 
             # Calculate the average AUC
-            test_auc = roc_auc_score(y_true=np.array(all_labels),
-                                     y_score=np.array(all_predicted_scores), average='micro')
+            test_auc = roc_auc_score(y_true=np.array(true_labels),
+                                     y_score=np.array(predicted_scores), average='micro')
 
             logger.info("All Test Dataset: Loss {0:g} | Acc {1:g} | Precision {2:g} | "
                         "Recall {3:g} | F1 {4:g} | AUC {5:g}"
@@ -135,9 +138,9 @@ def test_abcnn():
             # Save the prediction result
             if not os.path.exists(SAVE_DIR):
                 os.makedirs(SAVE_DIR)
-            dh.create_prediction_file(output_file=SAVE_DIR + "/predictions.json", front_data_id=test_data.front_testid,
-                                      behind_data_id=test_data.behind_testid, all_labels=all_labels,
-                                      all_predict_labels=all_predicted_labels, all_predict_scores=all_predicted_scores)
+            dh.create_prediction_file(output_file=SAVE_DIR + "/predictions.json", front_data_id=test_data['f_id'],
+                                      behind_data_id=test_data['b_id'], true_labels=true_labels,
+                                      predict_labels=predicted_labels, predict_scores=predicted_scores)
 
     logger.info("All Done.")
 

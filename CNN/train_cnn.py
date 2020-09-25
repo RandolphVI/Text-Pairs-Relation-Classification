@@ -31,6 +31,7 @@ def train_cnn():
     """Training CNN model."""
     # Print parameters used for the model
     dh.tab_printer(args, logger)
+
     # Load word2vec model
     word2idx, embedding_matrix = dh.load_word2vec_matrix(args.word2vec_file)
 
@@ -63,8 +64,10 @@ def train_cnn():
             # Define training procedure
             with tf.control_dependencies(tf.get_collection(tf.GraphKeys.UPDATE_OPS)):
                 learning_rate = tf.train.exponential_decay(learning_rate=args.learning_rate,
-                                                           global_step=cnn.global_step, decay_steps=args.decay_steps,
-                                                           decay_rate=args.decay_rate, staircase=True)
+                                                           global_step=cnn.global_step,
+                                                           decay_steps=args.decay_steps,
+                                                           decay_rate=args.decay_rate,
+                                                           staircase=True)
                 optimizer = tf.train.AdamOptimizer(learning_rate)
                 grads, vars = zip(*optimizer.compute_gradients(cnn.loss))
                 grads, _ = tf.clip_by_global_norm(grads, clip_norm=args.norm_ratio)
@@ -199,9 +202,7 @@ def train_cnn():
                 return eval_loss, eval_acc, eval_pre, eval_rec, eval_F1, eval_auc
 
             # Generate batches
-            batches_train = dh.batch_iter(
-                list(create_input_data(train_data)), args.batch_size, args.epochs)
-
+            batches_train = dh.batch_iter(list(create_input_data(train_data)), args.batch_size, args.epochs)
             num_batches_per_epoch = int((len(train_data['f_pad_seqs']) - 1) / args.batch_size) + 1
 
             # Training loop. For each batch...

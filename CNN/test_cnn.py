@@ -33,6 +33,7 @@ def test_cnn():
     """Test CNN model."""
     # Print parameters used for the model
     dh.tab_printer(args, logger)
+
     # Load word2vec model
     word2idx, embedding_matrix = dh.load_word2vec_matrix(args.word2vec_file)
 

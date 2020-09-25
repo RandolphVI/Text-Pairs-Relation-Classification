@@ -65,12 +65,14 @@ class TextABCNN(object):
             all_ap_reshaped = tf.reshape(all_ap, shape=[-1, num_filters])
             return all_ap_reshaped
 
-        def _linear(input_, output_size, scope="SimpleLinear"):
+        def _linear(input_, output_size, initializer=None, scope="SimpleLinear"):
             """
-            Linear map: output[k] = sum_i(Matrix[k, i] * args[i] ) + Bias[k]
+            Linear map: output[k] = sum_i(Matrix[k, i] * args[i] ) + Bias[k].
+
             Args:
                 input_: a tensor or a list of 2D, batch x n, Tensors.
                 output_size: int, second dimension of W[i].
+                initializer: The initializer.
                 scope: VariableScope for the created subgraph; defaults to "SimpleLinear".
             Returns:
                 A 2D Tensor with shape [batch x output_size] equal to
@@ -89,22 +91,23 @@ class TextABCNN(object):
             # Now the computation.
             with tf.variable_scope(scope):
                 W = tf.get_variable("W", [input_size, output_size], dtype=input_.dtype)
-                b = tf.get_variable("b", [output_size], dtype=input_.dtype)
+                b = tf.get_variable("b", [output_size], dtype=input_.dtype, initializer=initializer)
 
             return tf.nn.xw_plus_b(input_, W, b)
 
-        def _highway_layer(input_, size, num_layers=1, bias=-2.0, f=tf.nn.relu):
+        def _highway_layer(input_, size, num_layers=1, bias=-2.0):
             """
             Highway Network (cf. http://arxiv.org/abs/1505.00387).
-            t = sigmoid(Wy + b)
-            z = t * g(Wy + b) + (1 - t) * y
-            where g is nonlinearity, t is transform gate, and (1 - t) is carry gate.
+            t = sigmoid(Wx + b); h = relu(W'x + b')
+            z = t * h + (1 - t) * x
+            where t is transform gate, and (1 - t) is carry gate.
             """
 
             for idx in range(num_layers):
-                g = f(_linear(input_, size, scope=("highway_lin_{0}".format(idx))))
-                t = tf.sigmoid(_linear(input_, size, scope=("highway_gate_{0}".format(idx))) + bias)
-                output = t * g + (1. - t) * input_
+                h = tf.nn.relu(_linear(input_, size, scope=("highway_h_{0}".format(idx))))
+                t = tf.sigmoid(_linear(input_, size, initializer=tf.constant_initializer(bias),
+                                       scope=("highway_t_{0}".format(idx))))
+                output = t * h + (1. - t) * input_
                 input_ = output
 
             return output
@@ -195,7 +198,7 @@ class TextABCNN(object):
                     padding="VALID",
                     name="conv_behind")
 
-                # Apply nonlinearity
+                # Apply non-linearity
                 # [batch_size, 1, sequence_length + filter_size - 1, num_filters]
                 conv_out_front = tf.nn.relu(tf.nn.bias_add(conv_front, b), name="relu_front")
                 conv_out_behind = tf.nn.relu(tf.nn.bias_add(conv_behind, b), name="relu_behind")
@@ -255,7 +258,7 @@ class TextABCNN(object):
             b = tf.Variable(tf.constant(value=0.1, shape=[fc_hidden_size], dtype=tf.float32), name="b")
             self.fc = tf.nn.xw_plus_b(self.conv_combine, W, b)
 
-            # Apply nonlinearity
+            # Apply non-linearity
             self.fc_out = tf.nn.relu(self.fc, name="relu")
 
         # Highway Layer
