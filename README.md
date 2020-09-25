@@ -90,7 +90,7 @@ Anyway, it should depend on what your data and task are.
 
 ### Pre-trained Word Vectors
 
-**You can download the [Word2vec model file](https://drive.google.com/open?id=1o_F5CeCWvDtH2DhINRJP_bhByYIIoLUk) (dim=100). Make sure they are unzipped and under the `/data` folder.**
+**You can download the [Word2vec model file](https://drive.google.com/file/d/1XyONCw6WO5sP3Jbnwds7hsszuIrrEZta/view?usp=sharing) (dim=100). Make sure they are unzipped and under the `/data` folder.**
 
 You can pre-training your word vectors (based on your corpus) in many ways:
 - Use `gensim` package to pre-train data.
