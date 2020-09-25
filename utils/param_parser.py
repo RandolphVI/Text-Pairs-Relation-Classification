@@ -96,9 +96,9 @@ def parameter_parser():
                         help="Dropout keep probability. (default: 0.5)")
 
     parser.add_argument("--num-classes",
-                        type=list,
+                        type=int,
                         default=2,
-                        help="Each number of labels in hierarchical structure. (depends on the task)")
+                        help="Total number of labels. (depends on the task)")
 
     parser.add_argument("--threshold",
                         type=float,
